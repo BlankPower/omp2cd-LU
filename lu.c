@@ -232,8 +232,6 @@ c  local variables
       }
     }
   }
-#pragma omp master
-	printf("part1\n");
 
 // #pragma omp for nowait schedule(static)
 // #pragma omp for schedule(static)
@@ -462,7 +460,7 @@ c  local variables
   int i, j, m;
   double tmp, tmp1;
 
-#pragma omp for nowait schedule(static)
+#pragma omp for schedule(static)
   for (i = iend; i >= ist; i--) {
     for (j = jend; j >= jst; j--) {
       for (m = 0; m < 5; m++) {
@@ -476,9 +474,11 @@ c  local variables
     }
   }
 
-// #pragma omp for nowait schedule(static)
+
+// #pragma omp for schedule(static)
 #pragma omp master
   for (i = iend; i >= ist; i--) {
+
 #if defined(_OPENMP)      
     if (i != iend) {
       while (flag[i+1] == 0) {
@@ -493,7 +493,8 @@ c  local variables
       }
     }
 #endif /* _OPENMP */
-    
+    // int id = omp_get_thread_num();
+	// printf("Thread #%d: buts loopi %d start\n", id, i);
     for (j = jend; j >= jst; j--) {
       for (m = 0; m < 5; m++) {
 	tv[i][j][m] = tv[i][j][m]
@@ -1279,7 +1280,7 @@ c  local variables
 // #pragma omp for nowait schedule(static)
 #pragma omp for schedule(static)
   for (i = ist; i <= iend; i++) {
-	int id = omp_get_thread_num();
+	// int id = omp_get_thread_num();
 	// printf("Thread #%d: jacld entering loopi %d\n", id, i);
     for (j = jst; j <= jend; j++) {
 		// printf("loop (%d, %d) start\n", i, j);
@@ -1651,6 +1652,8 @@ c  local variables
 #pragma omp for schedule(static)
 #if defined(_OPENMP)  
   for (i = iend; i >= ist; i--) {
+	// int id = omp_get_thread_num();
+	// printf("Thread #%d: jacu entering loopi %d\n", id, i);
       for (j = jend; j >= jst; j--) {
 #else	  
   for (i = ist; i <= iend; i++) {
@@ -3147,16 +3150,16 @@ c   perform SSOR iteration
 			}
       }
     }
-#pragma omp master	
-		printf("init complete...\n");
+// #pragma omp master	
+// 		printf("init complete...\n");
 
     for (k = 1; k <= nz - 2; k++) {
 /*--------------------------------------------------------------------
 c   form the lower triangular part of the jacobian matrix
 --------------------------------------------------------------------*/
       	jacld(k);
-#pragma omp master	
-		printf("jacld complete... #k = %d\n", k);
+// #pragma omp master	
+// 		printf("jacld complete... #k = %d\n", k);
  
 /*--------------------------------------------------------------------
 c   perform the lower triangular solution
@@ -3171,21 +3174,21 @@ c   perform the lower triangular solution
 	   omega,
 	   ist, iend, jst, jend, 
 	   nx0, ny0 );
-#pragma omp master	
-		printf("blts complete... #k = %d\n", k);
+// #pragma omp master	
+// 		printf("blts complete... #k = %d\n", k);
     }
     
 #pragma omp barrier
-#pragma omp master	
-	printf("lower triangular part complete...\n");
+// #pragma omp master	
+// 	printf("lower triangular part complete...\n");
 
     for (k = nz - 2; k >= 1; k--) {
 /*--------------------------------------------------------------------
 c   form the strictly upper triangular part of the jacobian matrix
 --------------------------------------------------------------------*/
       jacu(k);
-#pragma omp master	
-		printf("jacu complete... #k = %d\n", k);
+// #pragma omp master	
+// 		printf("jacu complete... #k = %d\n", k);
 /*--------------------------------------------------------------------
 c   perform the upper triangular solution
 --------------------------------------------------------------------*/
@@ -3199,12 +3202,12 @@ c   perform the upper triangular solution
 	   omega,
 	   ist, iend, jst, jend,
 	   nx0, ny0 );	
-#pragma omp master	
-		printf("buts complete... #k = %d\n", k);	   
+// #pragma omp master	
+// 		printf("buts complete... #k = %d\n", k);	   
     }
 #pragma omp barrier 
-#pragma omp master	
-	printf("upper triangular part complete...\n");
+// #pragma omp master	
+// 	printf("upper triangular part complete...\n");
 
 /*--------------------------------------------------------------------
 c   update the variables
@@ -3230,15 +3233,15 @@ c   compute the max-norms of newton iteration corrections
 	      ist, iend, jst, jend,
 	      delunm );
     }
-#pragma omp master	
-	printf("l2norm(1) complete...\n");
+// #pragma omp master	
+// 	printf("l2norm(1) complete...\n");
  
 /*--------------------------------------------------------------------
 c   compute the steady-state residuals
 --------------------------------------------------------------------*/
     rhs();
-#pragma omp master	
-	printf("rhs complete...\n");
+// #pragma omp master	
+// 	printf("rhs complete...\n");
 
 /*--------------------------------------------------------------------
 c   compute the max-norms of newton iteration residuals
@@ -3249,11 +3252,6 @@ c   compute the max-norms of newton iteration residuals
 	      ist, iend, jst, jend,
 	      rsdnm );
     }
-#pragma omp master	
-{
-	printf("l2norm(2) complete...\n");
-	printf("%.2f %.2f %.2f %.2f %.2f\n", rsdnm[0], rsdnm[1], rsdnm[2], rsdnm[3], rsdnm[4]);
-}
 
 
 /*--------------------------------------------------------------------
