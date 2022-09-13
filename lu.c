@@ -39,17 +39,16 @@
 #include "applu.h"
 #include <omp.h>
 #include <math.h>
+
 #if defined(_OPENMP)
 /* for thread synchronization */
 static boolean flag[ISIZ1/2*2+1];
 #endif /* _OPENMP */
 
-
-
 /* function declarations */
 static void blts (int nx, int ny, int nz, int k,
 		  double omega,
-		//   double v[ISIZ1][ISIZ2/2*2+1][ISIZ3/2*2+1][5],
+		//   double rsd[ISIZ1][ISIZ2/2*2+1][ISIZ3/2*2+1][5],
 		//   double ldz[ISIZ1][ISIZ2][5][5],
 		//   double ldy[ISIZ1][ISIZ2][5][5],
 		//   double ldx[ISIZ1][ISIZ2][5][5],
@@ -58,12 +57,11 @@ static void blts (int nx, int ny, int nz, int k,
 		  int nx0, int ny0 );
 static void buts(int nx, int ny, int nz, int k,
 		 double omega,
-		//  double v[ISIZ1][ISIZ2/2*2+1][ISIZ3/2*2+1][5],
-		//  double tv[ISIZ1][ISIZ2][5],
+		//  double rsd[ISIZ1][ISIZ2/2*2+1][ISIZ3/2*2+1][5],
 		//  double d[ISIZ1][ISIZ2][5][5],
-		//  double udx[ISIZ1][ISIZ2][5][5],
-		//  double udy[ISIZ1][ISIZ2][5][5],
-		//  double udz[ISIZ1][ISIZ2][5][5],
+		//  double a[ISIZ1][ISIZ2][5][5],
+		//  double b[ISIZ1][ISIZ2][5][5],
+		//  double c[ISIZ1][ISIZ2][5][5],
 		 int ist, int iend, int jst, int jend,
 		 int nx0, int ny0 );
 static void domain(void);
@@ -75,7 +73,7 @@ static void jacu(int k);
 static void l2norm (int nx0, int ny0, int nz0,
 		    int ist, int iend,
 		    int jst, int jend,
-		    // double v[ISIZ1][ISIZ2/2*2+1][ISIZ3/2*2+1][5],
+		    // double rsd[ISIZ1][ISIZ2/2*2+1][ISIZ3/2*2+1][5],
 		    double sum[5]);
 static void pintgr(void);
 static void read_input(void);
@@ -109,37 +107,31 @@ c
 c   read input data
 --------------------------------------------------------------------*/
   read_input();
-  printf("read_input complete...\n");
 
 /*--------------------------------------------------------------------
 c   set up domain sizes
 --------------------------------------------------------------------*/
   domain();
-  printf("domain complete...\n");
 
 /*--------------------------------------------------------------------
 c   set up coefficients
 --------------------------------------------------------------------*/
   setcoeff();
-  printf("setcoeff complete...\n");
 
 /*--------------------------------------------------------------------
 c   set the boundary values for dependent variables
 --------------------------------------------------------------------*/
   setbv();
-  printf("setbv complete...\n");
 
 /*--------------------------------------------------------------------
 c   set the initial values for dependent variables
 --------------------------------------------------------------------*/
   setiv();
-  printf("setiv complete...\n");
 
 /*--------------------------------------------------------------------
 c   compute the forcing term based on prescribed exact solution
 --------------------------------------------------------------------*/
   erhs();
-  printf("erhs complete...\n");
   
 #pragma omp parallel
 {  
@@ -154,19 +146,16 @@ c   compute the forcing term based on prescribed exact solution
 c   perform the SSOR iterations
 --------------------------------------------------------------------*/
   ssor();
-  printf("ssor complete...\n");
 
 /*--------------------------------------------------------------------
 c   compute the solution error
 --------------------------------------------------------------------*/
   error();
-  printf("error complete...\n");
 
 /*--------------------------------------------------------------------
 c   compute the surface integral
 --------------------------------------------------------------------*/
   pintgr();
-  printf("pintgr complete...\n");
 
 /*--------------------------------------------------------------------
 c   verification test
@@ -179,7 +168,6 @@ c   verification test
 			 +27770.9* (double)( nx0+ny0+nz0 )/3.0
 			 -144010.0)
     / (maxtime*1000000.0);
-  printf("verify complete...\n");
 
   c_print_results("LU", class_is, nx0,
 		  ny0, nz0, itmax, nthreads,
@@ -198,9 +186,9 @@ c   To improve cache performance, second two dimensions padded by 1
 c   for even number sizes only.  Only needed in v.
 --------------------------------------------------------------------*/
 		//   double rsd[ISIZ1][ISIZ2/2*2+1][ISIZ3/2*2+1][5],
-		//   double a[ISIZ1][ISIZ2][5][5],
-		//   double b[ISIZ1][ISIZ2][5][5],
-		//   double c[ISIZ1][ISIZ2][5][5],
+		//   double ldz[ISIZ1][ISIZ2][5][5],	// a
+		//   double ldy[ISIZ1][ISIZ2][5][5],	// b
+		//   double ldx[ISIZ1][ISIZ2][5][5],	// c
 		//   double d[ISIZ1][ISIZ2][5][5],
 		  int ist, int iend, int jst, int jend,
 		  int nx0, int ny0 ) {
@@ -219,28 +207,27 @@ c  local variables
   double tmp, tmp1;
 
 #pragma omp for schedule(static)
-// #pragma omp for schedule(static)
+// #pragma omp for nowait schedule(static)
   for (i = ist; i <= iend; i++) {
     for (j = jst; j <= jend; j++) {
       for (m = 0; m < 5; m++) {
 	rsd[i][j][k][m] = rsd[i][j][k][m]
-	  - omega * (  a[i][j][m][0] * rsd[k-1][i][j][0]
-		       + a[i][j][m][1] * rsd[k-1][i][j][1]
-		       + a[i][j][m][2] * rsd[k-1][i][j][2]
-		       + a[i][j][m][3] * rsd[k-1][i][j][3]
-		       + a[i][j][m][4] * rsd[k-1][i][j][4]  );
+	  - omega * (  a[i][j][m][0] * rsd[i][j][k-1][0]
+		       + a[i][j][m][1] * rsd[i][j][k-1][1]
+		       + a[i][j][m][2] * rsd[i][j][k-1][2]
+		       + a[i][j][m][3] * rsd[i][j][k-1][3]
+		       + a[i][j][m][4] * rsd[i][j][k-1][4]  );
       }
     }
   }
-
-// #pragma omp for nowait schedule(static)
-// #pragma omp for schedule(static)
 #pragma omp master
-  for (i = ist; i <= iend; i++) {
+	printf("part1\n");
 
+#pragma omp for schedule(static)
+// #pragma omp for nowait schedule(static)
+  for (i = ist; i <= iend; i++) {
+    
 #if defined(_OPENMP)      
-	// int id = omp_get_thread_num();
-	// printf("Thread #%d: loopi %d start\n", id, i);
     if (i != ist) {
 	while (flag[i-1] == 0) {
 #pragma omp flush(flag)
@@ -256,19 +243,19 @@ c  local variables
 #endif /* _OPENMP */
     
     for (j = jst; j <= jend; j++) {
-		// printf("loop (%d, %d) start\n", i, j);
       for (m = 0; m < 5; m++) {
+
 	rsd[i][j][k][m] = rsd[i][j][k][m]
-	  - omega * ( b[i][j][m][0] * rsd[k][i][j-1][0]
-		      + c[i][j][m][0] * rsd[k][i-1][j][0]
-		      + b[i][j][m][1] * rsd[k][i][j-1][1]
-		      + c[i][j][m][1] * rsd[k][i-1][j][1]
-		      + b[i][j][m][2] * rsd[k][i][j-1][2]
-		      + c[i][j][m][2] * rsd[k][i-1][j][2]
-		      + b[i][j][m][3] * rsd[k][i][j-1][3]
-		      + c[i][j][m][3] * rsd[k][i-1][j][3]
-		      + b[i][j][m][4] * rsd[k][i][j-1][4]
-		      + c[i][j][m][4] * rsd[k][i-1][j][4] );
+	  - omega * ( b[i][j][m][0] * rsd[i][j-1][k][0]
+		      + c[i][j][m][0] * rsd[i-1][j][k][0]
+		      + b[i][j][m][1] * rsd[i][j-1][k][1]
+		      + c[i][j][m][1] * rsd[i-1][j][k][1]
+		      + b[i][j][m][2] * rsd[i][j-1][k][2]
+		      + c[i][j][m][2] * rsd[i-1][j][k][2]
+		      + b[i][j][m][3] * rsd[i][j-1][k][3]
+		      + c[i][j][m][3] * rsd[i-1][j][k][3]
+		      + b[i][j][m][4] * rsd[i][j-1][k][4]
+		      + c[i][j][m][4] * rsd[i-1][j][k][4] );
       }
        
 /*--------------------------------------------------------------------
@@ -438,12 +425,11 @@ static void buts(int nx, int ny, int nz, int k,
 c   To improve cache performance, second two dimensions padded by 1 
 c   for even number sizes only.  Only needed in v.
 --------------------------------------------------------------------*/
-		//  double v[ISIZ1][ISIZ2/2*2+1][ISIZ3/2*2+1][5],	// rsd
-		//  double tv[ISIZ1][ISIZ2][5],					// tv
-		//  double d[ISIZ1][ISIZ2][5][5],					// d
-		//  double udx[ISIZ1][ISIZ2][5][5],				// a
-		//  double udy[ISIZ1][ISIZ2][5][5],				// b
-		//  double udz[ISIZ1][ISIZ2][5][5],				// c
+		//  double rsd[ISIZ1][ISIZ2/2*2+1][ISIZ3/2*2+1][5],
+		//  double d[ISIZ1][ISIZ2][5][5],
+		//  double a[ISIZ1][ISIZ2][5][5],
+		//  double b[ISIZ1][ISIZ2][5][5],
+		//  double c[ISIZ1][ISIZ2][5][5],
 		 int ist, int iend, int jst, int jend,
 		 int nx0, int ny0 ) {
 /*--------------------------------------------------------------------
@@ -460,7 +446,8 @@ c  local variables
   int i, j, m;
   double tmp, tmp1;
 
-#pragma omp for schedule(static)
+// #pragma omp for schedule(static)
+#pragma omp for nowait schedule(static)
   for (i = iend; i >= ist; i--) {
     for (j = jend; j >= jst; j--) {
       for (m = 0; m < 5; m++) {
@@ -474,11 +461,9 @@ c  local variables
     }
   }
 
-
 // #pragma omp for schedule(static)
-#pragma omp master
+#pragma omp for nowait schedule(static)
   for (i = iend; i >= ist; i--) {
-
 #if defined(_OPENMP)      
     if (i != iend) {
       while (flag[i+1] == 0) {
@@ -493,8 +478,7 @@ c  local variables
       }
     }
 #endif /* _OPENMP */
-    // int id = omp_get_thread_num();
-	// printf("Thread #%d: buts loopi %d start\n", id, i);
+    
     for (j = jend; j >= jst; j--) {
       for (m = 0; m < 5; m++) {
 	tv[i][j][m] = tv[i][j][m]
@@ -1077,7 +1061,7 @@ c   zeta-direction flux differences
       for (k = 1; k <= nz - 2; k++) {
 	for (m = 0; m < 5; m++) {
 	  frct[i][j][k][m] =  frct[i][j][k][m]
-	    - tz2 * ( flux[i][j][k+1][m] - flux[k-1][i][j][m] );
+	    - tz2 * ( flux[i][j][k+1][m] - flux[i][j][k-1][m] );
 	}
       }
       for (k = 1; k <= nz-1; k++) {
@@ -1088,12 +1072,12 @@ c   zeta-direction flux differences
 	u41k = tmp * rsd[i][j][k][3];
 	u51k = tmp * rsd[i][j][k][4];
 
-	tmp = 1.0 / rsd[k-1][i][j][0];
+	tmp = 1.0 / rsd[i][j][k-1][0];
 
-	u21km1 = tmp * rsd[k-1][i][j][1];
-	u31km1 = tmp * rsd[k-1][i][j][2];
-	u41km1 = tmp * rsd[k-1][i][j][3];
-	u51km1 = tmp * rsd[k-1][i][j][4];
+	u21km1 = tmp * rsd[i][j][k-1][1];
+	u31km1 = tmp * rsd[i][j][k-1][2];
+	u41km1 = tmp * rsd[i][j][k-1][3];
+	u51km1 = tmp * rsd[i][j][k-1][4];
 
 	flux[i][j][k][1] = tz3 * ( u21k - u21km1 );
 	flux[i][j][k][2] = tz3 * ( u31k - u31km1 );
@@ -1111,27 +1095,27 @@ c   zeta-direction flux differences
 	frct[i][j][k][0] = frct[i][j][k][0]
 	  + dz1 * tz1 * (            rsd[i][j][k+1][0]
 				     - 2.0 * rsd[i][j][k][0]
-				     +           rsd[k-1][i][j][0] );
+				     +           rsd[i][j][k-1][0] );
 	frct[i][j][k][1] = frct[i][j][k][1]
 	  + tz3 * C3 * C4 * ( flux[i][j][k+1][1] - flux[i][j][k][1] )
 	  + dz2 * tz1 * (            rsd[i][j][k+1][1]
 				     - 2.0 * rsd[i][j][k][1]
-				     +           rsd[k-1][i][j][1] );
+				     +           rsd[i][j][k-1][1] );
 	frct[i][j][k][2] = frct[i][j][k][2]
 	  + tz3 * C3 * C4 * ( flux[i][j][k+1][2] - flux[i][j][k][2] )
 	  + dz3 * tz1 * (            rsd[i][j][k+1][2]
 				     - 2.0 * rsd[i][j][k][2]
-				     +           rsd[k-1][i][j][2] );
+				     +           rsd[i][j][k-1][2] );
 	frct[i][j][k][3] = frct[i][j][k][3]
 	  + tz3 * C3 * C4 * ( flux[i][j][k+1][3] - flux[i][j][k][3] )
 	  + dz4 * tz1 * (            rsd[i][j][k+1][3]
 				     - 2.0 * rsd[i][j][k][3]
-				     +           rsd[k-1][i][j][3] );
+				     +           rsd[i][j][k-1][3] );
 	frct[i][j][k][4] = frct[i][j][k][4]
 	  + tz3 * C3 * C4 * ( flux[i][j][k+1][4] - flux[i][j][k][4] )
 	  + dz5 * tz1 * (            rsd[i][j][k+1][4]
 				     - 2.0 * rsd[i][j][k][4]
-				     +           rsd[k-1][i][j][4] );
+				     +           rsd[i][j][k-1][4] );
       }
 
 /*--------------------------------------------------------------------
@@ -1153,7 +1137,7 @@ c   fourth-order dissipation
 	for (m = 0; m < 5; m++) {
 	  frct[i][j][k][m] = frct[i][j][k][m]
 	    - dsspm * (           rsd[i][j][k-2][m]
-				  - 4.0 * rsd[k-1][i][j][m]
+				  - 4.0 * rsd[i][j][k-1][m]
 				  + 6.0 * rsd[i][j][k][m]
 				  - 4.0 * rsd[i][j][k+1][m]
 				  +           rsd[i][j][k+2][m] );
@@ -1277,13 +1261,11 @@ c  local variables
   c1345 = C1 * C3 * C4 * C5;
   c34 = C3 * C4;
 
-// #pragma omp for nowait schedule(static)
 #pragma omp for schedule(static)
+// #pragma omp for nowait schedule(static)
   for (i = ist; i <= iend; i++) {
-	// int id = omp_get_thread_num();
-	// printf("Thread #%d: jacld entering loopi %d\n", id, i);
     for (j = jst; j <= jend; j++) {
-		// printf("loop (%d, %d) start\n", i, j);
+
 /*--------------------------------------------------------------------
 c   form the block daigonal
 --------------------------------------------------------------------*/
@@ -1384,7 +1366,7 @@ c   form the block daigonal
 /*--------------------------------------------------------------------
 c   form the first block sub-diagonal
 --------------------------------------------------------------------*/
-      tmp1 = 1.0 / u[k-1][i][j][0];
+      tmp1 = 1.0 / u[i][j][k-1][0];
       tmp2 = tmp1 * tmp1;
       tmp3 = tmp1 * tmp2;
 
@@ -1395,68 +1377,68 @@ c   form the first block sub-diagonal
       a[i][j][0][4] =   0.0;
 
       a[i][j][1][0] = - dt * tz2
-	* ( - ( u[k-1][i][j][1]*u[k-1][i][j][3] ) * tmp2 )
-	- dt * tz1 * ( - c34 * tmp2 * u[k-1][i][j][1] );
-      a[i][j][1][1] = - dt * tz2 * ( u[k-1][i][j][3] * tmp1 )
+	* ( - ( u[i][j][k-1][1]*u[i][j][k-1][3] ) * tmp2 )
+	- dt * tz1 * ( - c34 * tmp2 * u[i][j][k-1][1] );
+      a[i][j][1][1] = - dt * tz2 * ( u[i][j][k-1][3] * tmp1 )
 	- dt * tz1 * c34 * tmp1
 	- dt * tz1 * dz2 ;
       a[i][j][1][2] = 0.0;
-      a[i][j][1][3] = - dt * tz2 * ( u[k-1][i][j][1] * tmp1 );
+      a[i][j][1][3] = - dt * tz2 * ( u[i][j][k-1][1] * tmp1 );
       a[i][j][1][4] = 0.0;
 
       a[i][j][2][0] = - dt * tz2
-	* ( - ( u[k-1][i][j][2]*u[k-1][i][j][3] ) * tmp2 )
-	- dt * tz1 * ( - c34 * tmp2 * u[k-1][i][j][2] );
+	* ( - ( u[i][j][k-1][2]*u[i][j][k-1][3] ) * tmp2 )
+	- dt * tz1 * ( - c34 * tmp2 * u[i][j][k-1][2] );
       a[i][j][2][1] = 0.0;
-      a[i][j][2][2] = - dt * tz2 * ( u[k-1][i][j][3] * tmp1 )
+      a[i][j][2][2] = - dt * tz2 * ( u[i][j][k-1][3] * tmp1 )
 	- dt * tz1 * ( c34 * tmp1 )
 	- dt * tz1 * dz3;
-      a[i][j][2][3] = - dt * tz2 * ( u[k-1][i][j][2] * tmp1 );
+      a[i][j][2][3] = - dt * tz2 * ( u[i][j][k-1][2] * tmp1 );
       a[i][j][2][4] = 0.0;
 
       a[i][j][3][0] = - dt * tz2
-	* ( - ( u[k-1][i][j][3] * tmp1 ) *( u[k-1][i][j][3] * tmp1 )
+	* ( - ( u[i][j][k-1][3] * tmp1 ) *( u[i][j][k-1][3] * tmp1 )
 	    + 0.50 * C2
-	    * ( ( u[k-1][i][j][1] * u[k-1][i][j][1]
-		  + u[k-1][i][j][2] * u[k-1][i][j][2]
-		  + u[k-1][i][j][3] * u[k-1][i][j][3] ) * tmp2 ) )
-	- dt * tz1 * ( - r43 * c34 * tmp2 * u[k-1][i][j][3] );
+	    * ( ( u[i][j][k-1][1] * u[i][j][k-1][1]
+		  + u[i][j][k-1][2] * u[i][j][k-1][2]
+		  + u[i][j][k-1][3] * u[i][j][k-1][3] ) * tmp2 ) )
+	- dt * tz1 * ( - r43 * c34 * tmp2 * u[i][j][k-1][3] );
       a[i][j][3][1] = - dt * tz2
-	* ( - C2 * ( u[k-1][i][j][1] * tmp1 ) );
+	* ( - C2 * ( u[i][j][k-1][1] * tmp1 ) );
       a[i][j][3][2] = - dt * tz2
-	* ( - C2 * ( u[k-1][i][j][2] * tmp1 ) );
+	* ( - C2 * ( u[i][j][k-1][2] * tmp1 ) );
       a[i][j][3][3] = - dt * tz2 * ( 2.0 - C2 )
-	* ( u[k-1][i][j][3] * tmp1 )
+	* ( u[i][j][k-1][3] * tmp1 )
 	- dt * tz1 * ( r43 * c34 * tmp1 )
 	- dt * tz1 * dz4;
       a[i][j][3][4] = - dt * tz2 * C2;
 
       a[i][j][4][0] = - dt * tz2
-	* ( ( C2 * (  u[k-1][i][j][1] * u[k-1][i][j][1]
-                      + u[k-1][i][j][2] * u[k-1][i][j][2]
-                      + u[k-1][i][j][3] * u[k-1][i][j][3] ) * tmp2
-	      - C1 * ( u[k-1][i][j][4] * tmp1 ) )
-	    * ( u[k-1][i][j][3] * tmp1 ) )
+	* ( ( C2 * (  u[i][j][k-1][1] * u[i][j][k-1][1]
+                      + u[i][j][k-1][2] * u[i][j][k-1][2]
+                      + u[i][j][k-1][3] * u[i][j][k-1][3] ) * tmp2
+	      - C1 * ( u[i][j][k-1][4] * tmp1 ) )
+	    * ( u[i][j][k-1][3] * tmp1 ) )
 	- dt * tz1
-	* ( - ( c34 - c1345 ) * tmp3 * (u[k-1][i][j][1]*u[k-1][i][j][1])
-	    - ( c34 - c1345 ) * tmp3 * (u[k-1][i][j][2]*u[k-1][i][j][2])
-	    - ( r43*c34 - c1345 )* tmp3 * (u[k-1][i][j][3]*u[k-1][i][j][3])
-	    - c1345 * tmp2 * u[k-1][i][j][4] );
+	* ( - ( c34 - c1345 ) * tmp3 * (u[i][j][k-1][1]*u[i][j][k-1][1])
+	    - ( c34 - c1345 ) * tmp3 * (u[i][j][k-1][2]*u[i][j][k-1][2])
+	    - ( r43*c34 - c1345 )* tmp3 * (u[i][j][k-1][3]*u[i][j][k-1][3])
+	    - c1345 * tmp2 * u[i][j][k-1][4] );
       a[i][j][4][1] = - dt * tz2
-	* ( - C2 * ( u[k-1][i][j][1]*u[k-1][i][j][3] ) * tmp2 )
-	- dt * tz1 * ( c34 - c1345 ) * tmp2 * u[k-1][i][j][1];
+	* ( - C2 * ( u[i][j][k-1][1]*u[i][j][k-1][3] ) * tmp2 )
+	- dt * tz1 * ( c34 - c1345 ) * tmp2 * u[i][j][k-1][1];
       a[i][j][4][2] = - dt * tz2
-	* ( - C2 * ( u[k-1][i][j][2]*u[k-1][i][j][3] ) * tmp2 )
-	- dt * tz1 * ( c34 - c1345 ) * tmp2 * u[k-1][i][j][2];
+	* ( - C2 * ( u[i][j][k-1][2]*u[i][j][k-1][3] ) * tmp2 )
+	- dt * tz1 * ( c34 - c1345 ) * tmp2 * u[i][j][k-1][2];
       a[i][j][4][3] = - dt * tz2
-	* ( C1 * ( u[k-1][i][j][4] * tmp1 )
+	* ( C1 * ( u[i][j][k-1][4] * tmp1 )
             - 0.50 * C2
-            * ( (  u[k-1][i][j][1]*u[k-1][i][j][1]
-		   + u[k-1][i][j][2]*u[k-1][i][j][2]
-		   + 3.0*u[k-1][i][j][3]*u[k-1][i][j][3] ) * tmp2 ) )
-	- dt * tz1 * ( r43*c34 - c1345 ) * tmp2 * u[k-1][i][j][3];
+            * ( (  u[i][j][k-1][1]*u[i][j][k-1][1]
+		   + u[i][j][k-1][2]*u[i][j][k-1][2]
+		   + 3.0*u[i][j][k-1][3]*u[i][j][k-1][3] ) * tmp2 ) )
+	- dt * tz1 * ( r43*c34 - c1345 ) * tmp2 * u[i][j][k-1][3];
       a[i][j][4][4] = - dt * tz2
-	* ( C1 * ( u[k-1][i][j][3] * tmp1 ) )
+	* ( C1 * ( u[i][j][k-1][3] * tmp1 ) )
 	- dt * tz1 * c1345 * tmp1
 	- dt * tz1 * dz5;
 
@@ -1648,12 +1630,9 @@ c  local variables
   c1345 = C1 * C3 * C4 * C5;
   c34 = C3 * C4;
 
-// #pragma omp for nowait schedule(static)
-#pragma omp for schedule(static)
+#pragma omp for nowait schedule(static)
 #if defined(_OPENMP)  
   for (i = iend; i >= ist; i--) {
-	// int id = omp_get_thread_num();
-	// printf("Thread #%d: jacu entering loopi %d\n", id, i);
       for (j = jend; j >= jst; j--) {
 #else	  
   for (i = ist; i <= iend; i++) {
@@ -2011,7 +1990,7 @@ static void l2norm (int nx0, int ny0, int nz0,
 c   To improve cache performance, second two dimensions padded by 1 
 c   for even number sizes only.  Only needed in v.
 --------------------------------------------------------------------*/
-		    // double v[ISIZ1][ISIZ2/2*2+1][ISIZ3/2*2+1][5],
+		    // double rsd[ISIZ1][ISIZ2/2*2+1][ISIZ3/2*2+1][5],
 		    double sum[5]) {
 
 #pragma omp parallel 
@@ -2688,7 +2667,7 @@ c   zeta-direction flux differences
       for (k = 1; k <= nz - 2; k++) {
 	for (m = 0; m < 5; m++) {
 	  rsd[i][j][k][m] =  rsd[i][j][k][m]
-	    - tz2 * ( flux[i][j][k+1][m] - flux[k-1][i][j][m] );
+	    - tz2 * ( flux[i][j][k+1][m] - flux[i][j][k-1][m] );
 	}
       }
 
@@ -2700,12 +2679,12 @@ c   zeta-direction flux differences
 	u41k = tmp * u[i][j][k][3];
 	u51k = tmp * u[i][j][k][4];
 
-	tmp = 1.0 / u[k-1][i][j][0];
+	tmp = 1.0 / u[i][j][k-1][0];
 
-	u21km1 = tmp * u[k-1][i][j][1];
-	u31km1 = tmp * u[k-1][i][j][2];
-	u41km1 = tmp * u[k-1][i][j][3];
-	u51km1 = tmp * u[k-1][i][j][4];
+	u21km1 = tmp * u[i][j][k-1][1];
+	u31km1 = tmp * u[i][j][k-1][2];
+	u41km1 = tmp * u[i][j][k-1][3];
+	u51km1 = tmp * u[i][j][k-1][4];
 
 	flux[i][j][k][1] = tz3 * ( u21k - u21km1 );
 	flux[i][j][k][2] = tz3 * ( u31k - u31km1 );
@@ -2720,27 +2699,27 @@ c   zeta-direction flux differences
 
       for (k = 1; k <= nz - 2; k++) {
 	rsd[i][j][k][0] = rsd[i][j][k][0]
-	  + dz1 * tz1 * (            u[k-1][i][j][0]
+	  + dz1 * tz1 * (            u[i][j][k-1][0]
 				     - 2.0 * u[i][j][k][0]
 				     +           u[i][j][k+1][0] );
 	rsd[i][j][k][1] = rsd[i][j][k][1]
 	  + tz3 * C3 * C4 * ( flux[i][j][k+1][1] - flux[i][j][k][1] )
-	  + dz2 * tz1 * (            u[k-1][i][j][1]
+	  + dz2 * tz1 * (            u[i][j][k-1][1]
 				     - 2.0 * u[i][j][k][1]
 				     +           u[i][j][k+1][1] );
 	rsd[i][j][k][2] = rsd[i][j][k][2]
 	  + tz3 * C3 * C4 * ( flux[i][j][k+1][2] - flux[i][j][k][2] )
-	  + dz3 * tz1 * (            u[k-1][i][j][2]
+	  + dz3 * tz1 * (            u[i][j][k-1][2]
 				     - 2.0 * u[i][j][k][2]
 				     +           u[i][j][k+1][2] );
 	rsd[i][j][k][3] = rsd[i][j][k][3]
 	  + tz3 * C3 * C4 * ( flux[i][j][k+1][3] - flux[i][j][k][3] )
-	  + dz4 * tz1 * (            u[k-1][i][j][3]
+	  + dz4 * tz1 * (            u[i][j][k-1][3]
 				     - 2.0 * u[i][j][k][3]
 				     +           u[i][j][k+1][3] );
 	rsd[i][j][k][4] = rsd[i][j][k][4]
 	  + tz3 * C3 * C4 * ( flux[i][j][k+1][4] - flux[i][j][k][4] )
-	  + dz5 * tz1 * (            u[k-1][i][j][4]
+	  + dz5 * tz1 * (            u[i][j][k-1][4]
 				     - 2.0 * u[i][j][k][4]
 				     +           u[i][j][k+1][4] );
       }
@@ -2764,7 +2743,7 @@ c   fourth-order dissipation
 	for (m = 0; m < 5; m++) {
 	  rsd[i][j][k][m] = rsd[i][j][k][m]
 	    - dssp * (            u[i][j][k-2][m]
-				  - 4.0 * u[k-1][i][j][m]
+				  - 4.0 * u[i][j][k-1][m]
 				  + 6.0 * u[i][j][k][m]
 				  - 4.0 * u[i][j][k+1][m]
 				  +           u[i][j][k+2][m] );
@@ -2915,7 +2894,7 @@ c   diffusion coefficients
 /*--------------------------------------------------------------------
 c   fourth difference dissipation
 --------------------------------------------------------------------*/
-  //dssp = ( max (dx1, max(dy1, dz1) ) ) / 4.0;
+//   dssp = ( max (dx1, max(dy1, dz1) ) ) / 4.0;
   dssp = dz1 / 4.0;
 
 /*--------------------------------------------------------------------
@@ -3010,8 +2989,8 @@ c   coefficients of the exact solution to the fifth pde
 
 static void setiv(void) {
 
-#pragma omp parallel
-{
+// #pragma omp parallel
+// {
 /*--------------------------------------------------------------------
 c
 c   set the initial values of independent variables based on tri-linear
@@ -3026,8 +3005,10 @@ c  local variables
   int iglob, jglob;
   double  xi, eta, zeta;
   double  pxi, peta, pzeta;
+//   double  ue_1jk[5],ue_nx0jk[5],ue_i1k[5],
+//     ue_iny0k[5],ue_ij1[5],ue_ijnz[5];
 
-#pragma omp for
+// #pragma omp for
   for (j = 0; j < ny; j++) {
     jglob = j;
     for (k = 1; k < nz - 1; k++) {
@@ -3061,7 +3042,7 @@ c  local variables
       }
     }
   }
-}
+// }
 }
 /*--------------------------------------------------------------------
 --------------------------------------------------------------------*/
@@ -3135,7 +3116,7 @@ c   the timestep loop
     }
 
 #pragma omp parallel private(istep,i,j,k,m)
-{
+{  
  
 /*--------------------------------------------------------------------
 c   perform SSOR iteration
@@ -3143,72 +3124,50 @@ c   perform SSOR iteration
 #pragma omp for    
     for (i = ist; i <= iend; i++) {
       for (j = jst; j <= jend; j++) {
-			for (k = 1; k <= nz - 2; k++) {
-				for (m = 0; m < 5; m++) {
-					rsd[i][j][k][m] = dt * rsd[i][j][k][m];
-				}
-			}
+	for (k = 1; k <= nz - 2; k++) {
+	  for (m = 0; m < 5; m++) {
+	    rsd[i][j][k][m] = dt * rsd[i][j][k][m];
+	  }
+	}
       }
     }
-// #pragma omp master	
-// 		printf("init complete...\n");
 
     for (k = 1; k <= nz - 2; k++) {
 /*--------------------------------------------------------------------
 c   form the lower triangular part of the jacobian matrix
 --------------------------------------------------------------------*/
-      	jacld(k);
-// #pragma omp master	
-// 		printf("jacld complete... #k = %d\n", k);
- 
+      jacld(k);
+#pragma omp master	  
+		printf("jacld complete... #k = %d\n", k);
 /*--------------------------------------------------------------------
 c   perform the lower triangular solution
 --------------------------------------------------------------------*/
-    //   blts(nx, ny, nz, k,
-	//    omega,
-	//    rsd,
-	//    a, b, c, d,
-	//    ist, iend, jst, jend, 
-	//    nx0, ny0 );
       blts(nx, ny, nz, k,
 	   omega,
 	   ist, iend, jst, jend, 
 	   nx0, ny0 );
-// #pragma omp master	
-// 		printf("blts complete... #k = %d\n", k);
+#pragma omp master	  
+		printf("blts complete... #k = %d\n", k);
     }
     
 #pragma omp barrier
-// #pragma omp master	
-// 	printf("lower triangular part complete...\n");
 
     for (k = nz - 2; k >= 1; k--) {
 /*--------------------------------------------------------------------
 c   form the strictly upper triangular part of the jacobian matrix
 --------------------------------------------------------------------*/
       jacu(k);
-// #pragma omp master	
-// 		printf("jacu complete... #k = %d\n", k);
+
 /*--------------------------------------------------------------------
 c   perform the upper triangular solution
 --------------------------------------------------------------------*/
-    //   buts(nx, ny, nz, k,
-	//    omega,
-	//    rsd, tv,
-	//    d, a, b, c,
-	//    ist, iend, jst, jend,
-	//    nx0, ny0 );
       buts(nx, ny, nz, k,
 	   omega,
 	   ist, iend, jst, jend,
-	   nx0, ny0 );	
-// #pragma omp master	
-// 		printf("buts complete... #k = %d\n", k);	   
+	   nx0, ny0 );
     }
 #pragma omp barrier 
-// #pragma omp master	
-// 	printf("upper triangular part complete...\n");
-
+ 
 /*--------------------------------------------------------------------
 c   update the variables
 --------------------------------------------------------------------*/
@@ -3233,16 +3192,12 @@ c   compute the max-norms of newton iteration corrections
 	      ist, iend, jst, jend,
 	      delunm );
     }
-// #pragma omp master	
-// 	printf("l2norm(1) complete...\n");
  
 /*--------------------------------------------------------------------
 c   compute the steady-state residuals
 --------------------------------------------------------------------*/
     rhs();
-// #pragma omp master	
-// 	printf("rhs complete...\n");
-
+ 
 /*--------------------------------------------------------------------
 c   compute the max-norms of newton iteration residuals
 --------------------------------------------------------------------*/
@@ -3252,7 +3207,6 @@ c   compute the max-norms of newton iteration residuals
 	      ist, iend, jst, jend,
 	      rsdnm );
     }
-
 
 /*--------------------------------------------------------------------
 c   check the newton-iteration residuals against the tolerance levels
@@ -3551,4 +3505,3 @@ c    Output the comparison of computed results to known cases.
     printf(" Verification failed\n");
   }
 }
-
