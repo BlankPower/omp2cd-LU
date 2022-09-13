@@ -1,5 +1,5 @@
 #add_executable(dc.darts.exe adc.output.darts.cpp dc.output.darts.cpp extbuild.output.darts.cpp rbt.output.darts.cpp jobcntl.output.darts.cpp c_print_results.output.darts.cpp c_timers.output.darts.cpp wtime.output.darts.cpp ../../darts-lib/utils.cpp)
-add_executable(lu.darts.exe lu.output.darts.cpp c_print_results.output.darts.cpp c_timers.output.darts.cpp wtime.output.darts.cpp ../../darts-lib/utils.cpp)
+add_executable(lu.darts.exe c_print_results.output.darts.cpp c_timers.output.darts.cpp wtime.output.darts.cpp lu.output.darts.cpp ../../darts-lib/utils.cpp)
 target_link_libraries(lu.darts.exe darts)
 find_package(OpenMP)
 

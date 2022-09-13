@@ -49,21 +49,21 @@ static boolean flag[ISIZ1/2*2+1];
 /* function declarations */
 static void blts (int nx, int ny, int nz, int k,
 		  double omega,
-		  double v[ISIZ1][ISIZ2/2*2+1][ISIZ3/2*2+1][5],
-		  double ldz[ISIZ1][ISIZ2][5][5],
-		  double ldy[ISIZ1][ISIZ2][5][5],
-		  double ldx[ISIZ1][ISIZ2][5][5],
-		  double d[ISIZ1][ISIZ2][5][5],
+		//   double v[ISIZ1][ISIZ2/2*2+1][ISIZ3/2*2+1][5],
+		//   double ldz[ISIZ1][ISIZ2][5][5],
+		//   double ldy[ISIZ1][ISIZ2][5][5],
+		//   double ldx[ISIZ1][ISIZ2][5][5],
+		//   double d[ISIZ1][ISIZ2][5][5],
 		  int ist, int iend, int jst, int jend,
 		  int nx0, int ny0 );
 static void buts(int nx, int ny, int nz, int k,
 		 double omega,
-		 double v[ISIZ1][ISIZ2/2*2+1][ISIZ3/2*2+1][5],
-		 double tv[ISIZ1][ISIZ2][5],
-		 double d[ISIZ1][ISIZ2][5][5],
-		 double udx[ISIZ1][ISIZ2][5][5],
-		 double udy[ISIZ1][ISIZ2][5][5],
-		 double udz[ISIZ1][ISIZ2][5][5],
+		//  double v[ISIZ1][ISIZ2/2*2+1][ISIZ3/2*2+1][5],
+		//  double tv[ISIZ1][ISIZ2][5],
+		//  double d[ISIZ1][ISIZ2][5][5],
+		//  double udx[ISIZ1][ISIZ2][5][5],
+		//  double udy[ISIZ1][ISIZ2][5][5],
+		//  double udz[ISIZ1][ISIZ2][5][5],
 		 int ist, int iend, int jst, int jend,
 		 int nx0, int ny0 );
 static void domain(void);
@@ -75,7 +75,7 @@ static void jacu(int k);
 static void l2norm (int nx0, int ny0, int nz0,
 		    int ist, int iend,
 		    int jst, int jend,
-		    double v[ISIZ1][ISIZ2/2*2+1][ISIZ3/2*2+1][5],
+		    // double v[ISIZ1][ISIZ2/2*2+1][ISIZ3/2*2+1][5],
 		    double sum[5]);
 static void pintgr(void);
 static void read_input(void);
@@ -85,7 +85,7 @@ static void setcoeff(void);
 static void setiv(void);
 static void ssor(void);
 static void verify(double xcr[5], double xce[5], double xci,
-		   char *class, boolean *verified);
+		   char *class_is, boolean *verified);
 
 /*--------------------------------------------------------------------
       program applu
@@ -100,7 +100,7 @@ c   five coupled parabolic/elliptic partial differential equations.
 c
 --------------------------------------------------------------------*/
 
-  char class;
+  char class_is;
   boolean verified;
   double mflops;
   int nthreads = 1;
@@ -109,31 +109,37 @@ c
 c   read input data
 --------------------------------------------------------------------*/
   read_input();
+  printf("read_input complete...\n");
 
 /*--------------------------------------------------------------------
 c   set up domain sizes
 --------------------------------------------------------------------*/
   domain();
+  printf("domain complete...\n");
 
 /*--------------------------------------------------------------------
 c   set up coefficients
 --------------------------------------------------------------------*/
   setcoeff();
+  printf("setcoeff complete...\n");
 
 /*--------------------------------------------------------------------
 c   set the boundary values for dependent variables
 --------------------------------------------------------------------*/
   setbv();
+  printf("setbv complete...\n");
 
 /*--------------------------------------------------------------------
 c   set the initial values for dependent variables
 --------------------------------------------------------------------*/
   setiv();
+  printf("setiv complete...\n");
 
 /*--------------------------------------------------------------------
 c   compute the forcing term based on prescribed exact solution
 --------------------------------------------------------------------*/
   erhs();
+  printf("erhs complete...\n");
   
 #pragma omp parallel
 {  
@@ -148,21 +154,24 @@ c   compute the forcing term based on prescribed exact solution
 c   perform the SSOR iterations
 --------------------------------------------------------------------*/
   ssor();
+  printf("ssor complete...\n");
 
 /*--------------------------------------------------------------------
 c   compute the solution error
 --------------------------------------------------------------------*/
   error();
+  printf("error complete...\n");
 
 /*--------------------------------------------------------------------
 c   compute the surface integral
 --------------------------------------------------------------------*/
   pintgr();
+  printf("pintgr complete...\n");
 
 /*--------------------------------------------------------------------
 c   verification test
 --------------------------------------------------------------------*/
-  verify ( rsdnm, errnm, frc, &class, &verified );
+  verify ( rsdnm, errnm, frc, &class_is, &verified );
   mflops = (double)itmax*(1984.77*(double)nx0
 			 *(double)ny0
 			 *(double)nz0
@@ -170,8 +179,9 @@ c   verification test
 			 +27770.9* (double)( nx0+ny0+nz0 )/3.0
 			 -144010.0)
     / (maxtime*1000000.0);
+  printf("verify complete...\n");
 
-  c_print_results("LU", class, nx0,
+  c_print_results("LU", class_is, nx0,
 		  ny0, nz0, itmax, nthreads,
 		  maxtime, mflops, "          floating point", verified, 
 		  NPBVERSION, COMPILETIME, CS1, CS2, CS3, CS4, CS5, CS6, 
@@ -187,11 +197,11 @@ static void blts (int nx, int ny, int nz, int k,
 c   To improve cache performance, second two dimensions padded by 1 
 c   for even number sizes only.  Only needed in v.
 --------------------------------------------------------------------*/
-		  double v[ISIZ1][ISIZ2/2*2+1][ISIZ3/2*2+1][5],
-		  double ldz[ISIZ1][ISIZ2][5][5],
-		  double ldy[ISIZ1][ISIZ2][5][5],
-		  double ldx[ISIZ1][ISIZ2][5][5],
-		  double d[ISIZ1][ISIZ2][5][5],
+		//   double rsd[ISIZ1][ISIZ2/2*2+1][ISIZ3/2*2+1][5],
+		//   double a[ISIZ1][ISIZ2][5][5],
+		//   double b[ISIZ1][ISIZ2][5][5],
+		//   double c[ISIZ1][ISIZ2][5][5],
+		//   double d[ISIZ1][ISIZ2][5][5],
 		  int ist, int iend, int jst, int jend,
 		  int nx0, int ny0 ) {
 /*--------------------------------------------------------------------
@@ -207,26 +217,32 @@ c  local variables
 --------------------------------------------------------------------*/
   int i, j, m;
   double tmp, tmp1;
-  double tmat[5][5];
 
-#pragma omp for nowait schedule(static)
+#pragma omp for schedule(static)
+// #pragma omp for schedule(static)
   for (i = ist; i <= iend; i++) {
     for (j = jst; j <= jend; j++) {
       for (m = 0; m < 5; m++) {
-	v[i][j][k][m] = v[i][j][k][m]
-	  - omega * (  ldz[i][j][m][0] * v[k-1][i][j][0]
-		       + ldz[i][j][m][1] * v[k-1][i][j][1]
-		       + ldz[i][j][m][2] * v[k-1][i][j][2]
-		       + ldz[i][j][m][3] * v[k-1][i][j][3]
-		       + ldz[i][j][m][4] * v[k-1][i][j][4]  );
+	rsd[i][j][k][m] = rsd[i][j][k][m]
+	  - omega * (  a[i][j][m][0] * rsd[k-1][i][j][0]
+		       + a[i][j][m][1] * rsd[k-1][i][j][1]
+		       + a[i][j][m][2] * rsd[k-1][i][j][2]
+		       + a[i][j][m][3] * rsd[k-1][i][j][3]
+		       + a[i][j][m][4] * rsd[k-1][i][j][4]  );
       }
     }
   }
+#pragma omp master
+	printf("part1\n");
 
-#pragma omp for nowait schedule(static)
+// #pragma omp for nowait schedule(static)
+// #pragma omp for schedule(static)
+#pragma omp master
   for (i = ist; i <= iend; i++) {
-    
+
 #if defined(_OPENMP)      
+	// int id = omp_get_thread_num();
+	// printf("Thread #%d: loopi %d start\n", id, i);
     if (i != ist) {
 	while (flag[i-1] == 0) {
 #pragma omp flush(flag)
@@ -242,19 +258,19 @@ c  local variables
 #endif /* _OPENMP */
     
     for (j = jst; j <= jend; j++) {
+		// printf("loop (%d, %d) start\n", i, j);
       for (m = 0; m < 5; m++) {
-
-	v[i][j][k][m] = v[i][j][k][m]
-	  - omega * ( ldy[i][j][m][0] * v[k][i][j-1][0]
-		      + ldx[i][j][m][0] * v[k][i-1][j][0]
-		      + ldy[i][j][m][1] * v[k][i][j-1][1]
-		      + ldx[i][j][m][1] * v[k][i-1][j][1]
-		      + ldy[i][j][m][2] * v[k][i][j-1][2]
-		      + ldx[i][j][m][2] * v[k][i-1][j][2]
-		      + ldy[i][j][m][3] * v[k][i][j-1][3]
-		      + ldx[i][j][m][3] * v[k][i-1][j][3]
-		      + ldy[i][j][m][4] * v[k][i][j-1][4]
-		      + ldx[i][j][m][4] * v[k][i-1][j][4] );
+	rsd[i][j][k][m] = rsd[i][j][k][m]
+	  - omega * ( b[i][j][m][0] * rsd[k][i][j-1][0]
+		      + c[i][j][m][0] * rsd[k][i-1][j][0]
+		      + b[i][j][m][1] * rsd[k][i][j-1][1]
+		      + c[i][j][m][1] * rsd[k][i-1][j][1]
+		      + b[i][j][m][2] * rsd[k][i][j-1][2]
+		      + c[i][j][m][2] * rsd[k][i-1][j][2]
+		      + b[i][j][m][3] * rsd[k][i][j-1][3]
+		      + c[i][j][m][3] * rsd[k][i-1][j][3]
+		      + b[i][j][m][4] * rsd[k][i][j-1][4]
+		      + c[i][j][m][4] * rsd[k][i-1][j][4] );
       }
        
 /*--------------------------------------------------------------------
@@ -280,8 +296,8 @@ c   forward elimination
 	- tmp * tmat[0][3];
       tmat[1][4] =  tmat[1][4]
 	- tmp * tmat[0][4];
-      v[i][j][k][1] = v[i][j][k][1]
-	- v[i][j][k][0] * tmp;
+      rsd[i][j][k][1] = rsd[i][j][k][1]
+	- rsd[i][j][k][0] * tmp;
 
       tmp = tmp1 * tmat[2][0];
       tmat[2][1] =  tmat[2][1]
@@ -292,8 +308,8 @@ c   forward elimination
 	- tmp * tmat[0][3];
       tmat[2][4] =  tmat[2][4]
 	- tmp * tmat[0][4];
-      v[i][j][k][2] = v[i][j][k][2]
-	- v[i][j][k][0] * tmp;
+      rsd[i][j][k][2] = rsd[i][j][k][2]
+	- rsd[i][j][k][0] * tmp;
 
       tmp = tmp1 * tmat[3][0];
       tmat[3][1] =  tmat[3][1]
@@ -304,8 +320,8 @@ c   forward elimination
 	- tmp * tmat[0][3];
       tmat[3][4] =  tmat[3][4]
 	- tmp * tmat[0][4];
-      v[i][j][k][3] = v[i][j][k][3]
-	- v[i][j][k][0] * tmp;
+      rsd[i][j][k][3] = rsd[i][j][k][3]
+	- rsd[i][j][k][0] * tmp;
 
       tmp = tmp1 * tmat[4][0];
       tmat[4][1] =  tmat[4][1]
@@ -316,8 +332,8 @@ c   forward elimination
 	- tmp * tmat[0][3];
       tmat[4][4] =  tmat[4][4]
 	- tmp * tmat[0][4];
-      v[i][j][k][4] = v[i][j][k][4]
-	- v[i][j][k][0] * tmp;
+      rsd[i][j][k][4] = rsd[i][j][k][4]
+	- rsd[i][j][k][0] * tmp;
 
       tmp1 = 1.0 / tmat[ 1][1];
       tmp = tmp1 * tmat[ 2][1];
@@ -327,8 +343,8 @@ c   forward elimination
 	- tmp * tmat[1][3];
       tmat[2][4] =  tmat[2][4]
 	- tmp * tmat[1][4];
-      v[i][j][k][2] = v[i][j][k][2]
-	- v[i][j][k][1] * tmp;
+      rsd[i][j][k][2] = rsd[i][j][k][2]
+	- rsd[i][j][k][1] * tmp;
 
       tmp = tmp1 * tmat[3][1];
       tmat[3][2] =  tmat[3][2]
@@ -337,8 +353,8 @@ c   forward elimination
 	- tmp * tmat[1][3];
       tmat[3][4] =  tmat[3][4]
 	- tmp * tmat[1][4];
-      v[i][j][k][3] = v[i][j][k][3]
-	- v[i][j][k][1] * tmp;
+      rsd[i][j][k][3] = rsd[i][j][k][3]
+	- rsd[i][j][k][1] * tmp;
 
       tmp = tmp1 * tmat[4][1];
       tmat[4][2] =  tmat[4][2]
@@ -347,8 +363,8 @@ c   forward elimination
 	- tmp * tmat[1][3];
       tmat[4][4] =  tmat[4][4]
 	- tmp * tmat[1][4];
-      v[i][j][k][4] = v[i][j][k][4]
-	- v[i][j][k][1] * tmp;
+      rsd[i][j][k][4] = rsd[i][j][k][4]
+	- rsd[i][j][k][1] * tmp;
 
       tmp1 = 1.0 / tmat[2][2];
       tmp = tmp1 * tmat[3][2];
@@ -356,54 +372,54 @@ c   forward elimination
 	- tmp * tmat[2][3];
       tmat[3][4] =  tmat[3][4]
 	- tmp * tmat[2][4];
-      v[i][j][k][3] = v[i][j][k][3]
-        - v[i][j][k][2] * tmp;
+      rsd[i][j][k][3] = rsd[i][j][k][3]
+        - rsd[i][j][k][2] * tmp;
 
       tmp = tmp1 * tmat[4][2];
       tmat[4][3] =  tmat[4][3]
 	- tmp * tmat[2][3];
       tmat[4][4] =  tmat[4][4]
 	- tmp * tmat[2][4];
-      v[i][j][k][4] = v[i][j][k][4]
-	- v[i][j][k][2] * tmp;
+      rsd[i][j][k][4] = rsd[i][j][k][4]
+	- rsd[i][j][k][2] * tmp;
 
       tmp1 = 1.0 / tmat[3][3];
       tmp = tmp1 * tmat[4][3];
       tmat[4][4] =  tmat[4][4]
 	- tmp * tmat[3][4];
-      v[i][j][k][4] = v[i][j][k][4]
-	- v[i][j][k][3] * tmp;
+      rsd[i][j][k][4] = rsd[i][j][k][4]
+	- rsd[i][j][k][3] * tmp;
 
 /*--------------------------------------------------------------------
 c   back substitution
 --------------------------------------------------------------------*/
-      v[i][j][k][4] = v[i][j][k][4]
+      rsd[i][j][k][4] = rsd[i][j][k][4]
 	/ tmat[4][4];
 
-      v[i][j][k][3] = v[i][j][k][3]
-	- tmat[3][4] * v[i][j][k][4];
-      v[i][j][k][3] = v[i][j][k][3]
+      rsd[i][j][k][3] = rsd[i][j][k][3]
+	- tmat[3][4] * rsd[i][j][k][4];
+      rsd[i][j][k][3] = rsd[i][j][k][3]
 	/ tmat[3][3];
 
-      v[i][j][k][2] = v[i][j][k][2]
-	- tmat[2][3] * v[i][j][k][3]
-	- tmat[2][4] * v[i][j][k][4];
-      v[i][j][k][2] = v[i][j][k][2]
+      rsd[i][j][k][2] = rsd[i][j][k][2]
+	- tmat[2][3] * rsd[i][j][k][3]
+	- tmat[2][4] * rsd[i][j][k][4];
+      rsd[i][j][k][2] = rsd[i][j][k][2]
 	/ tmat[2][2];
 
-      v[i][j][k][1] = v[i][j][k][1]
-	- tmat[1][2] * v[i][j][k][2]
-	- tmat[1][3] * v[i][j][k][3]
-	- tmat[1][4] * v[i][j][k][4];
-      v[i][j][k][1] = v[i][j][k][1]
+      rsd[i][j][k][1] = rsd[i][j][k][1]
+	- tmat[1][2] * rsd[i][j][k][2]
+	- tmat[1][3] * rsd[i][j][k][3]
+	- tmat[1][4] * rsd[i][j][k][4];
+      rsd[i][j][k][1] = rsd[i][j][k][1]
 	/ tmat[1][1];
 
-      v[i][j][k][0] = v[i][j][k][0]
-	- tmat[0][1] * v[i][j][k][1]
-	- tmat[0][2] * v[i][j][k][2]
-	- tmat[0][3] * v[i][j][k][3]
-	- tmat[0][4] * v[i][j][k][4];
-      v[i][j][k][0] = v[i][j][k][0]
+      rsd[i][j][k][0] = rsd[i][j][k][0]
+	- tmat[0][1] * rsd[i][j][k][1]
+	- tmat[0][2] * rsd[i][j][k][2]
+	- tmat[0][3] * rsd[i][j][k][3]
+	- tmat[0][4] * rsd[i][j][k][4];
+      rsd[i][j][k][0] = rsd[i][j][k][0]
 	/ tmat[0][0];
     }
     
@@ -424,12 +440,12 @@ static void buts(int nx, int ny, int nz, int k,
 c   To improve cache performance, second two dimensions padded by 1 
 c   for even number sizes only.  Only needed in v.
 --------------------------------------------------------------------*/
-		 double v[ISIZ1][ISIZ2/2*2+1][ISIZ3/2*2+1][5],
-		 double tv[ISIZ1][ISIZ2][5],
-		 double d[ISIZ1][ISIZ2][5][5],
-		 double udx[ISIZ1][ISIZ2][5][5],
-		 double udy[ISIZ1][ISIZ2][5][5],
-		 double udz[ISIZ1][ISIZ2][5][5],
+		//  double v[ISIZ1][ISIZ2/2*2+1][ISIZ3/2*2+1][5],	// rsd
+		//  double tv[ISIZ1][ISIZ2][5],					// tv
+		//  double d[ISIZ1][ISIZ2][5][5],					// d
+		//  double udx[ISIZ1][ISIZ2][5][5],				// a
+		//  double udy[ISIZ1][ISIZ2][5][5],				// b
+		//  double udz[ISIZ1][ISIZ2][5][5],				// c
 		 int ist, int iend, int jst, int jend,
 		 int nx0, int ny0 ) {
 /*--------------------------------------------------------------------
@@ -445,23 +461,23 @@ c  local variables
 --------------------------------------------------------------------*/
   int i, j, m;
   double tmp, tmp1;
-  double tmat[5][5];
 
 #pragma omp for nowait schedule(static)
   for (i = iend; i >= ist; i--) {
     for (j = jend; j >= jst; j--) {
       for (m = 0; m < 5; m++) {
 	tv[i][j][m] = 
-	  omega * (  udz[i][j][m][0] * v[i][j][k+1][0]
-		     + udz[i][j][m][1] * v[i][j][k+1][1]
-		     + udz[i][j][m][2] * v[i][j][k+1][2]
-		     + udz[i][j][m][3] * v[i][j][k+1][3]
-		     + udz[i][j][m][4] * v[i][j][k+1][4] );
+	  omega * (  c[i][j][m][0] * rsd[i][j][k+1][0]
+		     + c[i][j][m][1] * rsd[i][j][k+1][1]
+		     + c[i][j][m][2] * rsd[i][j][k+1][2]
+		     + c[i][j][m][3] * rsd[i][j][k+1][3]
+		     + c[i][j][m][4] * rsd[i][j][k+1][4] );
       }
     }
   }
 
-#pragma omp for nowait schedule(static)
+// #pragma omp for nowait schedule(static)
+#pragma omp master
   for (i = iend; i >= ist; i--) {
 #if defined(_OPENMP)      
     if (i != iend) {
@@ -481,16 +497,16 @@ c  local variables
     for (j = jend; j >= jst; j--) {
       for (m = 0; m < 5; m++) {
 	tv[i][j][m] = tv[i][j][m]
-	  + omega * ( udy[i][j][m][0] * v[i][j+1][k][0]
-		      + udx[i][j][m][0] * v[i+1][j][k][0]
-		      + udy[i][j][m][1] * v[i][j+1][k][1]
-		      + udx[i][j][m][1] * v[i+1][j][k][1]
-		      + udy[i][j][m][2] * v[i][j+1][k][2]
-		      + udx[i][j][m][2] * v[i+1][j][k][2]
-		      + udy[i][j][m][3] * v[i][j+1][k][3]
-		      + udx[i][j][m][3] * v[i+1][j][k][3]
-		      + udy[i][j][m][4] * v[i][j+1][k][4]
-		      + udx[i][j][m][4] * v[i+1][j][k][4] );
+	  + omega * ( b[i][j][m][0] * rsd[i][j+1][k][0]
+		      + a[i][j][m][0] * rsd[i+1][j][k][0]
+		      + b[i][j][m][1] * rsd[i][j+1][k][1]
+		      + a[i][j][m][1] * rsd[i+1][j][k][1]
+		      + b[i][j][m][2] * rsd[i][j+1][k][2]
+		      + a[i][j][m][2] * rsd[i+1][j][k][2]
+		      + b[i][j][m][3] * rsd[i][j+1][k][3]
+		      + a[i][j][m][3] * rsd[i+1][j][k][3]
+		      + b[i][j][m][4] * rsd[i][j+1][k][4]
+		      + a[i][j][m][4] * rsd[i+1][j][k][4] );
       }
 
 /*--------------------------------------------------------------------
@@ -640,11 +656,11 @@ c   back substitution
       tv[i][j][0] = tv[i][j][0]
 	/ tmat[0][0];
 
-      v[i][j][k][0] = v[i][j][k][0] - tv[i][j][0];
-      v[i][j][k][1] = v[i][j][k][1] - tv[i][j][1];
-      v[i][j][k][2] = v[i][j][k][2] - tv[i][j][2];
-      v[i][j][k][3] = v[i][j][k][3] - tv[i][j][3];
-      v[i][j][k][4] = v[i][j][k][4] - tv[i][j][4];
+      rsd[i][j][k][0] = rsd[i][j][k][0] - tv[i][j][0];
+      rsd[i][j][k][1] = rsd[i][j][k][1] - tv[i][j][1];
+      rsd[i][j][k][2] = rsd[i][j][k][2] - tv[i][j][2];
+      rsd[i][j][k][3] = rsd[i][j][k][3] - tv[i][j][3];
+      rsd[i][j][k][4] = rsd[i][j][k][4] - tv[i][j][4];
     }
     
 #if defined(_OPENMP)    
@@ -1260,10 +1276,13 @@ c  local variables
   c1345 = C1 * C3 * C4 * C5;
   c34 = C3 * C4;
 
-#pragma omp for nowait schedule(static)
+// #pragma omp for nowait schedule(static)
+#pragma omp for schedule(static)
   for (i = ist; i <= iend; i++) {
+	int id = omp_get_thread_num();
+	// printf("Thread #%d: jacld entering loopi %d\n", id, i);
     for (j = jst; j <= jend; j++) {
-
+		// printf("loop (%d, %d) start\n", i, j);
 /*--------------------------------------------------------------------
 c   form the block daigonal
 --------------------------------------------------------------------*/
@@ -1628,7 +1647,8 @@ c  local variables
   c1345 = C1 * C3 * C4 * C5;
   c34 = C3 * C4;
 
-#pragma omp for nowait schedule(static)
+// #pragma omp for nowait schedule(static)
+#pragma omp for schedule(static)
 #if defined(_OPENMP)  
   for (i = iend; i >= ist; i--) {
       for (j = jend; j >= jst; j--) {
@@ -1988,7 +2008,7 @@ static void l2norm (int nx0, int ny0, int nz0,
 c   To improve cache performance, second two dimensions padded by 1 
 c   for even number sizes only.  Only needed in v.
 --------------------------------------------------------------------*/
-		    double v[ISIZ1][ISIZ2/2*2+1][ISIZ3/2*2+1][5],
+		    // double v[ISIZ1][ISIZ2/2*2+1][ISIZ3/2*2+1][5],
 		    double sum[5]) {
 
 #pragma omp parallel 
@@ -2013,11 +2033,11 @@ c  local variables
   for (i = ist; i <= iend; i++) {
     for (j = jst; j <= jend; j++) {
       for (k = 1; k <= nz0-2; k++) {
-	  sum0 = sum0 + v[i][j][k][0] * v[i][j][k][0];
-	  sum1 = sum1 + v[i][j][k][1] * v[i][j][k][1];
-	  sum2 = sum2 + v[i][j][k][2] * v[i][j][k][2];
-	  sum3 = sum3 + v[i][j][k][3] * v[i][j][k][3];
-	  sum4 = sum4 + v[i][j][k][4] * v[i][j][k][4];
+	  sum0 = sum0 + rsd[i][j][k][0] * rsd[i][j][k][0];
+	  sum1 = sum1 + rsd[i][j][k][1] * rsd[i][j][k][1];
+	  sum2 = sum2 + rsd[i][j][k][2] * rsd[i][j][k][2];
+	  sum3 = sum3 + rsd[i][j][k][3] * rsd[i][j][k][3];
+	  sum4 = sum4 + rsd[i][j][k][4] * rsd[i][j][k][4];
       }
     }
   }
@@ -3003,8 +3023,6 @@ c  local variables
   int iglob, jglob;
   double  xi, eta, zeta;
   double  pxi, peta, pzeta;
-  double  ue_1jk[5],ue_nx0jk[5],ue_i1k[5],
-    ue_iny0k[5],ue_ij1[5],ue_ijnz[5];
 
 #pragma omp for
   for (j = 0; j < ny; j++) {
@@ -3058,7 +3076,7 @@ c  local variables
   int i, j, k, m;
   int istep;
   double  tmp;
-  double  delunm[5], tv[ISIZ1][ISIZ2][5];
+  double  delunm[5];
 
 /*--------------------------------------------------------------------
 c   begin pseudo-time stepping iterations
@@ -3095,7 +3113,7 @@ c   compute the L2 norms of newton iteration residuals
 --------------------------------------------------------------------*/
   l2norm( nx0, ny0, nz0,
 	  ist, iend, jst, jend,
-	  rsd, rsdnm );
+	  rsdnm );
 
 
   timer_clear(1);
@@ -3114,7 +3132,7 @@ c   the timestep loop
     }
 
 #pragma omp parallel private(istep,i,j,k,m)
-{  
+{
  
 /*--------------------------------------------------------------------
 c   perform SSOR iteration
@@ -3122,51 +3140,72 @@ c   perform SSOR iteration
 #pragma omp for    
     for (i = ist; i <= iend; i++) {
       for (j = jst; j <= jend; j++) {
-	for (k = 1; k <= nz - 2; k++) {
-	  for (m = 0; m < 5; m++) {
-	    rsd[i][j][k][m] = dt * rsd[i][j][k][m];
-	  }
-	}
+			for (k = 1; k <= nz - 2; k++) {
+				for (m = 0; m < 5; m++) {
+					rsd[i][j][k][m] = dt * rsd[i][j][k][m];
+				}
+			}
       }
     }
+#pragma omp master	
+		printf("init complete...\n");
 
     for (k = 1; k <= nz - 2; k++) {
 /*--------------------------------------------------------------------
 c   form the lower triangular part of the jacobian matrix
 --------------------------------------------------------------------*/
-      jacld(k);
+      	jacld(k);
+#pragma omp master	
+		printf("jacld complete... #k = %d\n", k);
  
 /*--------------------------------------------------------------------
 c   perform the lower triangular solution
 --------------------------------------------------------------------*/
+    //   blts(nx, ny, nz, k,
+	//    omega,
+	//    rsd,
+	//    a, b, c, d,
+	//    ist, iend, jst, jend, 
+	//    nx0, ny0 );
       blts(nx, ny, nz, k,
 	   omega,
-	   rsd,
-	   a, b, c, d,
 	   ist, iend, jst, jend, 
 	   nx0, ny0 );
+#pragma omp master	
+		printf("blts complete... #k = %d\n", k);
     }
     
 #pragma omp barrier
+#pragma omp master	
+	printf("lower triangular part complete...\n");
 
     for (k = nz - 2; k >= 1; k--) {
 /*--------------------------------------------------------------------
 c   form the strictly upper triangular part of the jacobian matrix
 --------------------------------------------------------------------*/
       jacu(k);
-
+#pragma omp master	
+		printf("jacu complete... #k = %d\n", k);
 /*--------------------------------------------------------------------
 c   perform the upper triangular solution
 --------------------------------------------------------------------*/
+    //   buts(nx, ny, nz, k,
+	//    omega,
+	//    rsd, tv,
+	//    d, a, b, c,
+	//    ist, iend, jst, jend,
+	//    nx0, ny0 );
       buts(nx, ny, nz, k,
 	   omega,
-	   rsd, tv,
-	   d, a, b, c,
 	   ist, iend, jst, jend,
-	   nx0, ny0 );
+	   nx0, ny0 );	
+#pragma omp master	
+		printf("buts complete... #k = %d\n", k);	   
     }
 #pragma omp barrier 
- 
+#pragma omp master	
+	printf("upper triangular part complete...\n");
+
 /*--------------------------------------------------------------------
 c   update the variables
 --------------------------------------------------------------------*/
@@ -3189,14 +3228,18 @@ c   compute the max-norms of newton iteration corrections
     if ( istep % inorm  ==  0 ) {
       l2norm( nx0, ny0, nz0,
 	      ist, iend, jst, jend,
-	      rsd, delunm );
+	      delunm );
     }
+#pragma omp master	
+	printf("l2norm(1) complete...\n");
  
 /*--------------------------------------------------------------------
 c   compute the steady-state residuals
 --------------------------------------------------------------------*/
     rhs();
- 
+#pragma omp master	
+	printf("rhs complete...\n");
+
 /*--------------------------------------------------------------------
 c   compute the max-norms of newton iteration residuals
 --------------------------------------------------------------------*/
@@ -3204,8 +3247,14 @@ c   compute the max-norms of newton iteration residuals
 	 ( istep  ==  itmax ) ) {
       l2norm( nx0, ny0, nz0,
 	      ist, iend, jst, jend,
-	      rsd, rsdnm );
+	      rsdnm );
     }
+#pragma omp master	
+{
+	printf("l2norm(2) complete...\n");
+	printf("%.2f %.2f %.2f %.2f %.2f\n", rsdnm[0], rsdnm[1], rsdnm[2], rsdnm[3], rsdnm[4]);
+}
+
 
 /*--------------------------------------------------------------------
 c   check the newton-iteration residuals against the tolerance levels
@@ -3229,7 +3278,7 @@ c   check the newton-iteration residuals against the tolerance levels
 --------------------------------------------------------------------*/
 
 static void verify(double xcr[5], double xce[5], double xci,
-		   char *class, boolean *verified) {
+		   char *class_is, boolean *verified) {
 
 /*--------------------------------------------------------------------
 c  verification routine                         
@@ -3245,7 +3294,7 @@ c   tolerance level
 --------------------------------------------------------------------*/
   epsilon = 1.0e-08;
 
-  *class = 'U';
+  *class_is = 'U';
   *verified = TRUE;
 
   for (m = 0; m < 5; m++) {
@@ -3255,7 +3304,7 @@ c   tolerance level
   xciref = 1.0;
 
   if ( nx0 == 12 && ny0 == 12 && nz0 == 12 && itmax == 50)  {
-    *class = 'S';
+    *class_is = 'S';
     dtref = 5.0e-1;
 
 /*--------------------------------------------------------------------
@@ -3286,7 +3335,7 @@ c   after 50 time steps, with DT = 5.0d-01
 
   } else if ( nx0 == 33 && ny0 == 33 && nz0 == 33 && itmax == 300) {
 
-    *class = 'W';   /* SPEC95fp size */
+    *class_is = 'W';   /* SPEC95fp size */
     dtref = 1.5e-3;
 /*--------------------------------------------------------------------
 c   Reference values of RMS-norms of residual, for the (33x33x33) grid,
@@ -3315,7 +3364,7 @@ c   after 300 time steps, with  DT = 1.5d-3
 
   } else if ( nx0 == 64 && ny0 == 64 && nz0 == 64 && itmax == 250) {
 
-    *class = 'A';
+    *class_is = 'A';
     dtref = 2.0e+0;
 /*--------------------------------------------------------------------
 c   Reference values of RMS-norms of residual, for the (64X64X64) grid,
@@ -3345,7 +3394,7 @@ c   after 250 time steps, with DT = 2.0d+0.0
 
     } else if ( nx0 == 102 && ny0 == 102 && nz0 == 102 && itmax == 250) {
 
-      *class = 'B';
+      *class_is = 'B';
       dtref = 2.0e+0;
 
 /*--------------------------------------------------------------------
@@ -3376,7 +3425,7 @@ c   after 250 time steps, with DT = 2.0d+0.0
 
       } else if ( nx0 == 162 && ny0 == 162 && nz0 == 162 && itmax == 250) {
 
-	*class = 'C';
+	*class_is = 'C';
 	dtref = 2.0e+0;
 
 /*--------------------------------------------------------------------
@@ -3428,26 +3477,26 @@ c    Compute the difference of solution values and the known reference values.
 c    Output the comparison of computed results to known cases.
 --------------------------------------------------------------------*/
 
-  if (*class != 'U') {
-    printf("\n Verification being performed for class %1c\n", *class);
+  if (*class_is != 'U') {
+    printf("\n Verification being performed for class_is %1c\n", *class_is);
     printf(" Accuracy setting for epsilon = %20.13e\n", epsilon);
     if (fabs(dt-dtref) > epsilon) {  
       *verified = FALSE;
-      *class = 'U';
+      *class_is = 'U';
       printf(" DT does not match the reference value of %15.8e\n", dtref);
     }
   } else {
-    printf(" Unknown class\n");
+    printf(" Unknown class_is\n");
   }
 
-  if (*class != 'U') {
+  if (*class_is != 'U') {
     printf(" Comparison of RMS-norms of residual\n");
   } else {
     printf(" RMS-norms of residual\n");
   }
 
   for (m = 0; m < 5; m++) {
-    if (*class  ==  'U') {
+    if (*class_is  ==  'U') {
       printf("          %2d  %20.13e\n", m, xcr[m]);
     } else if (xcrdif[m] > epsilon) {
       *verified = FALSE;
@@ -3459,14 +3508,14 @@ c    Output the comparison of computed results to known cases.
     }
   }
 
-  if (*class != 'U') {
+  if (*class_is != 'U') {
     printf(" Comparison of RMS-norms of solution error\n");
   } else {
     printf(" RMS-norms of solution error\n");
   }
         
   for (m = 0; m < 5; m++) {
-    if (*class  ==  'U') {
+    if (*class_is  ==  'U') {
       printf("          %2d  %20.13e\n", m, xce[m]);
     } else if (xcedif[m] > epsilon) {
       *verified = FALSE;
@@ -3478,13 +3527,13 @@ c    Output the comparison of computed results to known cases.
     }
   }
         
-  if (*class != 'U') {
+  if (*class_is != 'U') {
     printf(" Comparison of surface integral\n");
   } else {
     printf(" Surface integral\n");
   }
 
-  if (*class  ==  'U') {
+  if (*class_is  ==  'U') {
     printf("              %20.13e\n", xci);
   } else if (xcidif > epsilon) {
     *verified = FALSE;
@@ -3495,7 +3544,7 @@ c    Output the comparison of computed results to known cases.
 	   xci, xciref, xcidif);
   }
 
-  if (*class  ==  'U') {
+  if (*class_is  ==  'U') {
     printf(" No reference values provided\n");
     printf(" No verification performed\n");
   } else if (*verified) {

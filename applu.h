@@ -9,7 +9,7 @@ c   npbparams.h defines parameters that depend on the class and
 c   number of nodes
 c-------------------------------------------------------------------*/
 
-#include "npbparams.h"
+#include "npbparams-S.h"
 
 /*--------------------------------------------------------------------
 c   parameters which can be overridden in runtime config file
@@ -95,6 +95,11 @@ static double a[ISIZ1][ISIZ2][5][5];
 static double b[ISIZ1][ISIZ2][5][5];
 static double c[ISIZ1][ISIZ2][5][5];
 static double d[ISIZ1][ISIZ2][5][5];
+
+static double tv[ISIZ1][ISIZ2][5];
+static double tmat[5][5];
+static double ue_1jk[5], ue_nx0jk[5], ue_i1k[5];
+static double ue_iny0k[5], ue_ij1[5], ue_ijnz[5];
 
 /*--------------------------------------------------------------------
 c   coefficients of the exact solution

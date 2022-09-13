@@ -7,7 +7,7 @@ double start_dartsThreadPriv0[MAXNUMTHREADS][64];
 double elapsed_time()
 {
     /*elapsed_time:39*/
-    /*CompoundStmt:176*/
+    /*CompoundStmt:146*/
     double t;
     wtime(&t);
     return (t);
@@ -16,21 +16,21 @@ double elapsed_time()
 void timer_clear(int n)
 {
     /*timer_clear:40*/
-    /*CompoundStmt:181*/
+    /*CompoundStmt:151*/
     ((elapsed_dartsThreadPriv0[0]))[n] = 0.;
 }
 /*Function: timer_start, ID: 41*/
 void timer_start(int n)
 {
     /*timer_start:41*/
-    /*CompoundStmt:185*/
+    /*CompoundStmt:155*/
     ((start_dartsThreadPriv0[0]))[n] = elapsed_time();
 }
 /*Function: timer_stop, ID: 42*/
 void timer_stop(int n)
 {
     /*timer_stop:42*/
-    /*CompoundStmt:189*/
+    /*CompoundStmt:159*/
     double t, now;
     now = elapsed_time();
     t = now - ((start_dartsThreadPriv0[0]))[n];
@@ -40,6 +40,6 @@ void timer_stop(int n)
 double timer_read(int n)
 {
     /*timer_read:43*/
-    /*CompoundStmt:198*/
+    /*CompoundStmt:168*/
     return (((elapsed_dartsThreadPriv0[0]))[n]);
 }
